@@ -17,15 +17,15 @@ Connect the IMU to the board using the following scheme.
 
 **PLEASE NOTE**: In this setup, the breakout board that has been used already integrates a 5V-to-3V3 voltage regulator. **DO NOT** connect 5V directly to the MPU-9150.
 
-+------------------+               +----------------------+
-|     MPU-9150     |               |   STM32F4DISCOVERY   |
-|                  |               |                      |
-|             INT  +---------------+  PB4                 |
-|             GND  +---------------+  GND                 |
-|             VDD  +---------------+  5V                  |
-|             SDA  +---------------+  PB7                 |
-|             SCL  +---------------+  PB6                 |
-|                  |               |                      |
-+------------------+               +----------------------+
+    +------------------+               +----------------------+
+    |     MPU-9150     |               |   STM32F4DISCOVERY   |
+    |                  |               |                      |
+    |             INT  +---------------+  PB4                 |
+    |             GND  +---------------+  GND                 |
+    |             VDD  +---------------+  5V                  |
+    |             SDA  +---------------+  PB7                 |
+    |             SCL  +---------------+  PB6                 |
+    |                  |               |                      |
+    +------------------+               +----------------------+
 
 Once the firmware has been uploaded, the board will start sending raw quaternion data to the host PC at the frequency specified during the initialization phase. This data can be visualized via a GUI using the python scripts provided with the SDK (*adjustments to the orientation matrices may be needed for a correct visualization*).
