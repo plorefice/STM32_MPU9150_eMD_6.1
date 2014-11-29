@@ -19,6 +19,7 @@ struct hal_s {
     unsigned long next_pedo_ms;
     unsigned long next_temp_ms;
     unsigned long next_compass_ms;
+		unsigned long next_data_tx_ms;
     unsigned int report;
     unsigned short dmp_features;
     struct rx_s rx;

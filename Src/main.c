@@ -76,6 +76,7 @@ volatile uint32_t hal_timestamp = 0;
 
 #define PEDO_READ_MS    (1000)
 #define TEMP_READ_MS    (500)
+#define DATA_TX_MS      (20)
 #define COMPASS_READ_MS (5)
 
 /* Private variables ---------------------------------------------------------*/
@@ -864,7 +865,11 @@ int main(void)
 			 * in eMPL_outputs.c. This function only needs to be called at the
 			 * rate requested by the host.
 			 */
-			read_from_mpl();
+			if (timestamp > hal.next_data_tx_ms)
+			{
+				hal.next_data_tx_ms += DATA_TX_MS;
+				read_from_mpl();
+			}
     }
   }
 }
