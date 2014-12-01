@@ -55,8 +55,8 @@ volatile uint32_t hal_timestamp = 0;
 #define FLASH_SIZE      (512)
 #define FLASH_MEM_START ((void*)0x1800)
 
-#define TEMP_READ_MS    (500)
-#define COMPASS_READ_MS (50)
+#define TEMP_READ_MS    (2000)
+#define COMPASS_READ_MS (20)
 
 #define MAG_CALIB_SAMPLE_NUM   (200)
 #define MAG_CALIB_EXIT_AFTER   (3)
@@ -313,8 +313,7 @@ int main(void)
 	unsigned short gyro_rate, gyro_fsr, compass_fsr;
 	unsigned long timestamp;
 	struct point3 raw_mag_data[MAG_CALIB_SAMPLE_NUM];
-	struct point3 calib_mag_data[MAG_CALIB_SAMPLE_NUM];
-	struct point3 calib_vec;
+	struct point3 calib_vec, compass_data;
 	int num_samples = 0;
 	int calibrated = 0;
 	
@@ -438,24 +437,23 @@ int main(void)
 					
 					if (num_samples == MAG_CALIB_SAMPLE_NUM)
 					{
+						HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+						
 						mag_online_calib(raw_mag_data, &calib_vec);
 						calibrated = 1;
 						num_samples = 0;
+						
+						HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 					}
 				}
 				else
 				{
-					if (num_samples < MAG_CALIB_SAMPLE_NUM)
-					{
-						calib_mag_data[num_samples].x = ((float) compass[0] * 0.3f) - calib_vec.x;
-						calib_mag_data[num_samples].y = ((float) compass[1] * 0.3f) - calib_vec.y;
-						calib_mag_data[num_samples].z = ((float) compass[2] * 0.3f) - calib_vec.z;
-						num_samples++;
-					}
-					else
-					{
-						HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-					}
+					compass_data.x = ((float) compass[0] * 0.3f) - calib_vec.x;
+					compass_data.y = ((float) compass[1] * 0.3f) - calib_vec.y;
+					compass_data.z = ((float) compass[2] * 0.3f) - calib_vec.z;
+					
+					USBD_CDC_SetTxBuffer(&hUsbDeviceFS, (uint8_t *) &compass_data, sizeof(compass_data));
+					USBD_CDC_TransmitPacket(&hUsbDeviceFS);
 				}
 			}
 			
@@ -540,6 +538,9 @@ void MX_GPIO_Init(void)
 	GPIO_IS.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_IS.Pull = GPIO_NOPULL;
 	GPIO_IS.Speed = GPIO_SPEED_MEDIUM;
+	HAL_GPIO_Init(GPIOD, &GPIO_IS);
+	
+	GPIO_IS.Pin = GPIO_PIN_13;
 	HAL_GPIO_Init(GPIOD, &GPIO_IS);
 
 }
