@@ -50,12 +50,13 @@ volatile uint32_t hal_timestamp = 0;
 #define GYRO_ON         (0x02)
 #define COMPASS_ON      (0x04)
 
-#define DEFAULT_MPU_HZ  (200)
+#define DEFAULT_MPU_HZ  (100)
 
 #define FLASH_SIZE      (512)
 #define FLASH_MEM_START ((void*)0x1800)
 
 #define TEMP_READ_MS    (2000)
+#define SERIAL_MS       (20)
 #define COMPASS_READ_MS (20)
 
 #define MAG_CALIB_SAMPLE_NUM   (200)
@@ -313,7 +314,7 @@ int main(void)
 	unsigned short gyro_rate, gyro_fsr, compass_fsr;
 	unsigned long timestamp;
 	struct point3 raw_mag_data[MAG_CALIB_SAMPLE_NUM];
-	struct point3 calib_vec, compass_data;
+	struct point3 calib_vec, data[3];
 	int num_samples = 0;
 	int calibrated = 0;
 	
@@ -351,7 +352,7 @@ int main(void)
 			inv_orientation_matrix_to_scalar(gyro_pdata.orientation));
 	
 	hal.dmp_features = DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_SEND_RAW_ACCEL | 
-											DMP_FEATURE_SEND_CAL_GYRO |	DMP_FEATURE_GYRO_CAL;
+										 DMP_FEATURE_SEND_CAL_GYRO |	DMP_FEATURE_GYRO_CAL;
 	dmp_enable_feature(hal.dmp_features);
 	dmp_set_fifo_rate(DEFAULT_MPU_HZ);
 	mpu_set_dmp_state(1);
@@ -382,6 +383,14 @@ int main(void)
       new_temp = 1;
     }
 		
+		if (timestamp > hal.next_serial_ms)
+		{
+			hal.next_serial_ms = timestamp + SERIAL_MS;
+			
+			USBD_CDC_SetTxBuffer(&hUsbDeviceFS, (uint8_t *) data, sizeof(data));
+			USBD_CDC_TransmitPacket(&hUsbDeviceFS);
+		}
+		
 		if (!hal.sensors || !hal.new_gyro)
 		{
       continue;
@@ -399,6 +408,8 @@ int main(void)
 			
 			if (sensors & INV_XYZ_GYRO)
 			{
+				float sens;
+				
 				new_data = 1;
 				if (new_temp)
 				{
@@ -406,13 +417,41 @@ int main(void)
 					/* Temperature only used for gyro temp comp. */
 					mpu_get_temperature(&temperature, &sensor_timestamp);
 				}
+				
+				switch(gyro_fsr)
+				{
+				case 250:
+					sens = 131.0f;
+					break;
+				case 500:
+					sens = 65.5f;
+					break;
+				case 1000:
+					sens = 32.8f;
+					break;
+				case 2000:
+					sens = 16.4f;
+					break;
+				default:
+					sens = 0.f;
+					break;
+				}
+				
+				data[1].x = (float) gyro[0] / sens;
+				data[1].y = (float) gyro[1] / sens;
+				data[1].z = (float) gyro[2] / sens;
 			}
 			if (sensors & INV_XYZ_ACCEL)
 			{
-					accel[0] = (long)accel_short[0];
-					accel[1] = (long)accel_short[1];
-					accel[2] = (long)accel_short[2];
-					new_data = 1;
+				accel[0] = (long)accel_short[0];
+				accel[1] = (long)accel_short[1];
+				accel[2] = (long)accel_short[2];
+				
+				new_data = 1;
+				
+				data[0].x = (float) accel[0] / 16384.0f;
+				data[0].y = (float) accel[1] / 16384.0f;
+				data[0].z = (float) accel[2] / 16384.0f;
 			}
 		}
 		
@@ -448,12 +487,9 @@ int main(void)
 				}
 				else
 				{
-					compass_data.x = ((float) compass[0] * 0.3f) - calib_vec.x;
-					compass_data.y = ((float) compass[1] * 0.3f) - calib_vec.y;
-					compass_data.z = ((float) compass[2] * 0.3f) - calib_vec.z;
-					
-					USBD_CDC_SetTxBuffer(&hUsbDeviceFS, (uint8_t *) &compass_data, sizeof(compass_data));
-					USBD_CDC_TransmitPacket(&hUsbDeviceFS);
+					data[2].x = ((float) compass[0] * 0.3f) - calib_vec.x;
+					data[2].y = ((float) compass[1] * 0.3f) - calib_vec.y;
+					data[2].z = ((float) compass[2] * 0.3f) - calib_vec.z;
 				}
 			}
 			
